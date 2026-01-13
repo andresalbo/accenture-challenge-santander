@@ -5,12 +5,13 @@ import com.santander.challenge.controller.EntidadBancariaController;
 import com.santander.challenge.model.EntidadBancaria;
 import com.santander.challenge.service.EntidadBancariaService;
 import com.santander.challenge.service.IdempotencyService;
+import com.santander.challenge.service.ConcurrentEntidadBancariaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,11 +29,14 @@ class EntidadBancariaControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private EntidadBancariaService service;
 
-    @MockBean
+    @MockitoBean
     private IdempotencyService idempotencyService;
+
+    @MockitoBean
+    private ConcurrentEntidadBancariaService concurrentService;
 
     private ObjectMapper objectMapper;
     private EntidadBancaria entidad;
@@ -99,7 +103,7 @@ class EntidadBancariaControllerTest {
     }
 
     @Test
-    void createEntity2_ShouldReturn200_WhenProcessed() throws Exception {
+    void createEntity2_ShouldReturn201_WhenProcessed() throws Exception {
     	Mockito.when(idempotencyService.processEntity("key123")).thenReturn(null);
         Mockito.when(service.guardar(any(EntidadBancaria.class))).thenReturn(entidad);
 
@@ -107,7 +111,7 @@ class EntidadBancariaControllerTest {
                         .header("Idempotency-Key", "key123")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(entidad)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombre").value("Banco Test"))
                 .andExpect(jsonPath("$.codigoBcra").value("123"))
                 .andExpect(jsonPath("$.pais").value("AR"));

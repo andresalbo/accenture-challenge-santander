@@ -15,7 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/api")
-public class Controller2 {
+public class EntidadBancariaController2 {
 	
 	@Autowired
 	private RestTemplate restTemplate;
