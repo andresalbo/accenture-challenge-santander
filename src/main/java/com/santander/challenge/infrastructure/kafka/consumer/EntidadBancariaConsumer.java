@@ -72,38 +72,29 @@ public class EntidadBancariaConsumer {
         trackingService.updateStatus(message);
 
         try {
-            // Verificar idempotencia usando el servicio existente
+            // Verificar idempotencia
             String idempotencyKey = message.getIdempotencyKey();
             
-            try {
-                // Intenta verificar si la entidad ya existe
-                idempotencyService.checkAndSaveKey(idempotencyKey);
-            } catch (IllegalStateException e) {
+            // checkAndSaveKey retorna false si ya existe (duplicado)
+            boolean isNewRequest = idempotencyService.checkAndSaveKey(idempotencyKey);
+
+            if (!isNewRequest) {
                 // La entidad ya existe - es un duplicado
-                logger.warn("Entidad duplicada detectada - idempotencyKey: {}", idempotencyKey);
+                logger.warn("Solicitud duplicada detectada - idempotencyKey: {}", idempotencyKey);
                 message.setStatus(MessageStatus.DUPLICATE);
-                message.setErrorMessage("Entity already exists with this idempotency key");
-                trackingService.updateStatus(message);
-                producer.sendResult(message);
-                acknowledgment.acknowledge();
-                return;
-            } catch (IllegalArgumentException e) {
-                // UUID inválido
-                logger.error("UUID inválido - idempotencyKey: {}", idempotencyKey);
-                message.setStatus(MessageStatus.FAILED);
-                message.setErrorMessage("Invalid UUID format: " + idempotencyKey);
+                message.setErrorMessage("Request already processed with this idempotency key");
                 trackingService.updateStatus(message);
                 producer.sendResult(message);
                 acknowledgment.acknowledge();
                 return;
             }
 
-            // Crear la entidad
-            EntidadBancariaDomain entidad = new EntidadBancariaDomain();
-            entidad.setId(UUID.fromString(idempotencyKey));
-            entidad.setNombre(message.getNombre());
-            entidad.setCodigoBcra(message.getCodigoBcra());
-            entidad.setPais(message.getPais());
+            // Crear la entidad (sin establecer ID, se auto-genera)
+            EntidadBancariaDomain entidad = new EntidadBancariaDomain(
+                message.getNombre(),
+                message.getCodigoBcra(),
+                message.getPais()
+            );
 
             // Guardar en base de datos
             EntidadBancariaDomain savedEntity = entidadBancariaService.crear(entidad);
